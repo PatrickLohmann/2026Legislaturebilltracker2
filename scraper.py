@@ -66,31 +66,27 @@ def parse_bill_html(html):
     location_match = re.search(r'id="MainContent_formViewLegislation_linkLocation"[^>]*>([^<]+)</a>', html)
     current_location = location_match.group(1).strip() if location_match else ""
     
-    # Try to get last action from the actions table
-    action_table_pattern = r'<table[^>]*class="[^"]*table[^"]*"[^>]*>(.*?)</table>'
-    action_matches = re.findall(action_table_pattern, html, re.DOTALL)
-    
+    # Extract actions from lblAction spans
+    # Format: Legislative Day: X<br/>Calendar Day: MM/DD/YYYY</br><strong>Action text</strong>
+    action_pattern = r'dataListActions_lblAction_\d+"[^>]*>(.*?)</span>'
+    actions = re.findall(action_pattern, html, re.DOTALL)
+
     last_date = ""
     status = ""
-    
-    if action_matches:
-        # Get tables that might contain actions
-        for table_html in action_matches:
-            # Find all rows
-            rows = re.findall(r'<tr[^>]*>(.*?)</tr>', table_html, re.DOTALL)
-            if len(rows) > 1:  # Skip header
-                # Get last row
-                last_row = rows[-1]
-                # Extract cells
-                cells = re.findall(r'<td[^>]*>(.*?)</td>', last_row, re.DOTALL)
-                if len(cells) >= 1:
-                    # Clean up cell content
-                    for i, cell in enumerate(cells[:2]):
-                        clean_cell = re.sub(r'<[^>]+>', '', cell).strip()
-                        if i == 0:
-                            last_date = clean_cell
-                        elif i == 1:
-                            status = clean_cell
+
+    if actions:
+        # Get the last action (most recent)
+        last_action = actions[-1]
+
+        # Extract calendar day
+        date_match = re.search(r'Calendar Day:\s*(\d{2}/\d{2}/\d{4})', last_action)
+        if date_match:
+            last_date = date_match.group(1)
+
+        # Extract action text (inside <strong> tags)
+        action_match = re.search(r'<strong>([^<]+)</strong>', last_action)
+        if action_match:
+            status = action_match.group(1).strip()
     
     return {
         'bill_id': bill_id,
@@ -114,14 +110,17 @@ def scrape_bill(chamber, bill_num, session_year="26"):
     if not bill_data:
         return None
     
+    # Format bill number as HTML link for Datawrapper
+    bill_num_display = bill_data['bill_id'] or bill_id
+    bill_link = f'<a href="{url}" target="_blank">{bill_num_display}</a>'
+
     return {
-        'Bill Number': bill_data['bill_id'] or bill_id,
+        'Bill Number': bill_link,
         'Title': bill_data['title'],
         'Sponsors': bill_data['sponsors'],
         'Status': bill_data['status'],
         'Current Location/Referral': bill_data['location'],
-        'Last Action Date': bill_data['last_date'],
-        'URL': url
+        'Last Action Date': bill_data['last_date']
     }
 
 def main():
@@ -169,14 +168,12 @@ def main():
         print(f"✅ SUCCESS! Found {len(bills)} bills")
         print(f"📄 Saved to: {filename}")
         print(f"\nColumns included:")
-        print("  • Bill Number")
+        print("  • Bill Number (with hyperlink to bill page)")
         print("  • Title")
         print("  • Sponsors (all co-sponsors included, separated by semicolons)")
         print("  • Status (last action)")
         print("  • Current Location/Referral (committee assignment)")
         print("  • Last Action Date")
-        print("  • URL (direct link to bill)")
-        print("\nYou can open this file in Excel or Google Sheets!")
         print("=" * 60)
     else:
         print("\n❌ No bills found.")
