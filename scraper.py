@@ -133,28 +133,28 @@ def main():
     session_year = "26"
     
     # Scrape House and Senate bills
+    # Max bill numbers based on 2026 session (HB goes up to ~380, SB to ~320)
+    max_bills = {'H': 400, 'S': 350}
+
     for chamber in ['H', 'S']:
         chamber_name = "House" if chamber == 'H' else "Senate"
         print(f"\n{chamber_name} Bills:")
         print("-" * 60)
-        
-        bill_num = 1
-        consecutive_misses = 0
-        
-        while bill_num <= 500 and consecutive_misses < 50:
+
+        found_count = 0
+        for bill_num in range(1, max_bills[chamber] + 1):
             bill_data = scrape_bill(chamber, bill_num, session_year)
-            
+
             if bill_data:
                 bills.append(bill_data)
+                found_count += 1
                 # Show first sponsor only in output to keep it clean
                 first_sponsor = bill_data['Sponsors'].split(';')[0] if bill_data['Sponsors'] else ""
                 print(f"  ✓ {bill_data['Bill Number']}: {bill_data['Title'][:40]}... ({first_sponsor})")
-                consecutive_misses = 0
-            else:
-                consecutive_misses += 1
-            
-            bill_num += 1
+
             time.sleep(0.2)  # Be nice to the server
+
+        print(f"  Found {found_count} {chamber_name} bills")
     
     # Save to CSV with consistent filename for GitHub
     if bills:
