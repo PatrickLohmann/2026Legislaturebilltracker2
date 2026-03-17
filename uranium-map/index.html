@@ -121,7 +121,12 @@
                     {
                         id: "usgs-topo-layer",
                         type: "raster",
-                        source: "usgs-topo"
+                        source: "usgs-topo",
+                        paint: {
+                            "raster-saturation": -0.8,
+                            "raster-brightness-min": 0.05,
+                            "raster-contrast": -0.1
+                        }
                     },
                     {
                         id: "mines-circles",
