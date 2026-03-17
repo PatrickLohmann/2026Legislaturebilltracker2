@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Abandoned Uranium Mines in New Mexico</title>
+    <script src="https://unpkg.com/maplibre-gl@^5.2.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.2.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/pmtiles@4.2.1/dist/pmtiles.js"></script>
+    <script src="https://unpkg.com/@protomaps/basemaps@5.0.0/dist/basemaps.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+        }
+        .legend {
+            position: absolute;
+            bottom: 36px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.93);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+            line-height: 1.9;
+            z-index: 1;
+        }
+        .legend-title {
+            font-weight: 700;
+            font-size: 12.5px;
+            margin-bottom: 2px;
+            color: #111;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: #333;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.15);
+        }
+        .maplibregl-popup-content {
+            padding: 12px 14px;
+            font-size: 12.5px;
+            max-width: 290px;
+            line-height: 1.55;
+            border-radius: 6px !important;
+        }
+        .popup-name {
+            font-weight: 700;
+            font-size: 13.5px;
+            margin-bottom: 7px;
+            color: #111;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 5px;
+        }
+        .popup-row {
+            margin: 2px 0;
+            color: #444;
+        }
+        .popup-label {
+            font-weight: 600;
+            color: #222;
+        }
+        .popup-link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 11.5px;
+            font-weight: 500;
+        }
+        .popup-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="legend">
+        <div class="legend-title">Mining Method</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>Underground</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Surface</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div>Surface & underground</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>In situ leach</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#9ca3af"></div>Other / unknown</div>
+    </div>
+
+    <script>
+        const API_KEY = "YOUR_PROTOMAPS_KEY";
+
+        let protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol("pmtiles", protocol.tile);
+
+        const map = new maplibregl.Map({
+            container: "map",
+            zoom: 6,
+            center: [-106.5, 34.5],
+            style: {
+                version: 8,
+                glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+                sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
+                sources: {
+                    basemap: {
+                        type: "vector",
+                        url: `pmtiles://https://api.protomaps.com/tiles/v4.pmtiles?key=${API_KEY}`,
+                        attribution: '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+                    },
+                    mines: {
+                        type: "geojson",
+                        data: "./uranium_mines.geojson"
+                    }
+                },
+                layers: [
+                    ...basemaps.layers("basemap", basemaps.namedFlavor("grayscale")),
+                    {
+                        id: "mines-circles",
+                        source: "mines",
+                        type: "circle",
+                        paint: {
+                            "circle-radius": [
+                                "interpolate", ["linear"], ["zoom"],
+                                5, 4,
+                                10, 8
+                            ],
+                            "circle-color": [
+                                "match",
+                                ["get", "MINING_METHODS"],
+                                "underground",          "#2563eb",
+                                "surface",              "#d97706",
+                                "surface, underground", "#7c3aed",
+                                "in situ leach",        "#16a34a",
+                                "#9ca3af"
+                            ],
+                            "circle-opacity": 0.85,
+                            "circle-stroke-width": 1,
+                            "circle-stroke-color": "rgba(255,255,255,0.7)"
+                        }
+                    },
+                    ...basemaps.layers("basemap", basemaps.namedFlavor("grayscale"), { lang: "en", labelsOnly: true })
+                ]
+            }
+        });
+
+        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+        map.fitBounds([
+            [-109.05, 31.33],
+            [-103.0, 37.0]
+        ], { padding: 30 });
+
+        // Click popup
+        map.on("click", "mines-circles", (e) => {
+            const p = e.features[0].properties;
+
+            const years = (p.YEAR_OF_INITIAL_PRODUCTION && p.YEAR_OF_LAST_PRODUCTION)
+                ? `${p.YEAR_OF_INITIAL_PRODUCTION}–${p.YEAR_OF_LAST_PRODUCTION}`
+                : p.YEAR_OF_INITIAL_PRODUCTION || p.YEAR_OF_LAST_PRODUCTION || "Unknown";
+
+            const method = (p.MINING_METHODS && p.MINING_METHODS !== "none")
+                ? p.MINING_METHODS.charAt(0).toUpperCase() + p.MINING_METHODS.slice(1)
+                : "Unknown";
+
+            const docLink = p.DOCUMENT_LINK
+                ? `<a class="popup-link" href="${p.DOCUMENT_LINK}" target="_blank">View NMED documents →</a>`
+                : "";
+
+            new maplibregl.Popup({ maxWidth: "300px" })
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                    <div class="popup-name">${p.NAME}</div>
+                    <div class="popup-row"><span class="popup-label">County:</span> ${p.COUNTY || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">District:</span> ${p.DISTRICT || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">Method:</span> ${method}</div>
+                    <div class="popup-row"><span class="popup-label">Active years:</span> ${years}</div>
+                    <div class="popup-row"><span class="popup-label">Last operator:</span> ${p.LAST_OPERATOR || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">Regulator:</span> ${p.CURRENT_REG_AGENCY || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">Status:</span> ${p.MARP_STATUS || "—"}</div>
+                    ${docLink}
+                `)
+                .addTo(map);
+        });
+
+        map.on("mouseenter", "mines-circles", () => {
+            map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", "mines-circles", () => {
+            map.getCanvas().style.cursor = "";
+        });
+    </script>
+</body>
+</html>
