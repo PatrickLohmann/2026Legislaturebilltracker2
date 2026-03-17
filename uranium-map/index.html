@@ -6,8 +6,6 @@
     <title>Abandoned Uranium Mines in New Mexico</title>
     <script src="https://unpkg.com/maplibre-gl@^5.2.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@^5.2.0/dist/maplibre-gl.css" rel="stylesheet" />
-    <script src="https://unpkg.com/pmtiles@4.2.1/dist/pmtiles.js"></script>
-    <script src="https://unpkg.com/@protomaps/basemaps@5.0.0/dist/basemaps.js"></script>
     <style>
         html, body {
             margin: 0;
@@ -99,24 +97,20 @@
     </div>
 
     <script>
-        const API_KEY = "cc789ea1f4f53231";
-
-        let protocol = new pmtiles.Protocol();
-        maplibregl.addProtocol("pmtiles", protocol.tile);
-
         const map = new maplibregl.Map({
             container: "map",
             zoom: 6,
             center: [-106.5, 34.5],
             style: {
                 version: 8,
-                glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-                sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
                 sources: {
-                    basemap: {
-                        type: "vector",
-                        url: `pmtiles://https://api.protomaps.com/tiles/v4.pmtiles?key=${API_KEY}`,
-                        attribution: '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+                    "usgs-topo": {
+                        type: "raster",
+                        tiles: [
+                            "https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}"
+                        ],
+                        tileSize: 256,
+                        attribution: '<a href="https://www.usgs.gov/">U.S. Geological Survey</a>'
                     },
                     mines: {
                         type: "geojson",
@@ -124,7 +118,11 @@
                     }
                 },
                 layers: [
-                    ...basemaps.layers("basemap", basemaps.namedFlavor("grayscale")),
+                    {
+                        id: "usgs-topo-layer",
+                        type: "raster",
+                        source: "usgs-topo"
+                    },
                     {
                         id: "mines-circles",
                         source: "mines",
@@ -132,8 +130,8 @@
                         paint: {
                             "circle-radius": [
                                 "interpolate", ["linear"], ["zoom"],
-                                5, 4,
-                                10, 8
+                                5, 5,
+                                10, 9
                             ],
                             "circle-color": [
                                 "match",
@@ -144,12 +142,11 @@
                                 "in situ leach",        "#16a34a",
                                 "#9ca3af"
                             ],
-                            "circle-opacity": 0.85,
-                            "circle-stroke-width": 1,
-                            "circle-stroke-color": "rgba(255,255,255,0.7)"
+                            "circle-opacity": 0.9,
+                            "circle-stroke-width": 1.5,
+                            "circle-stroke-color": "rgba(255,255,255,0.85)"
                         }
-                    },
-                    ...basemaps.layers("basemap", basemaps.namedFlavor("grayscale"), { lang: "en", labelsOnly: true })
+                    }
                 ]
             }
         });
