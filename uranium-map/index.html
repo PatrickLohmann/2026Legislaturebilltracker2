@@ -88,6 +88,12 @@
     <div id="map"></div>
 
     <div class="legend">
+        <div class="legend-title" style="margin-bottom:4px">Active remediation</div>
+        <div class="legend-item">
+            <div class="legend-dot" style="background:#f97316; width:12px; height:12px; box-shadow: 0 0 0 3px rgba(249,115,22,0.3);"></div>
+            Currently being remediated
+        </div>
+        <div style="border-top:1px solid #e5e7eb; margin: 7px 0;"></div>
         <div class="legend-title">Mining Method</div>
         <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>Underground</div>
         <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Surface</div>
@@ -129,6 +135,22 @@
                         }
                     },
                     {
+                        id: "mines-remediated-halo",
+                        source: "mines",
+                        type: "circle",
+                        filter: ["in", "NAME", "Schmitt decline", "Moe No. 4", "Red Bluff No. 1", "Roundy Shaft", "Roundy Manol Strip"],
+                        paint: {
+                            "circle-radius": [
+                                "interpolate", ["linear"], ["zoom"],
+                                5, 12,
+                                10, 20
+                            ],
+                            "circle-color": "#f97316",
+                            "circle-opacity": 0.2,
+                            "circle-stroke-width": 0
+                        }
+                    },
+                    {
                         id: "mines-circles",
                         source: "mines",
                         type: "circle",
@@ -150,6 +172,23 @@
                             "circle-opacity": 0.9,
                             "circle-stroke-width": 1.5,
                             "circle-stroke-color": "rgba(255,255,255,0.85)"
+                        }
+                    },
+                    {
+                        id: "mines-remediated",
+                        source: "mines",
+                        type: "circle",
+                        filter: ["in", "NAME", "Schmitt decline", "Moe No. 4", "Red Bluff No. 1", "Roundy Shaft", "Roundy Manol Strip"],
+                        paint: {
+                            "circle-radius": [
+                                "interpolate", ["linear"], ["zoom"],
+                                5, 6,
+                                10, 11
+                            ],
+                            "circle-color": "#f97316",
+                            "circle-opacity": 1,
+                            "circle-stroke-width": 2,
+                            "circle-stroke-color": "white"
                         }
                     }
                 ]
@@ -195,10 +234,44 @@
                 .addTo(map);
         });
 
+        map.on("click", "mines-remediated", (e) => {
+            const p = e.features[0].properties;
+            const years = (p.YEAR_OF_INITIAL_PRODUCTION && p.YEAR_OF_LAST_PRODUCTION)
+                ? `${p.YEAR_OF_INITIAL_PRODUCTION}–${p.YEAR_OF_LAST_PRODUCTION}`
+                : p.YEAR_OF_INITIAL_PRODUCTION || p.YEAR_OF_LAST_PRODUCTION || "Unknown";
+            const method = (p.MINING_METHODS && p.MINING_METHODS !== "none")
+                ? p.MINING_METHODS.charAt(0).toUpperCase() + p.MINING_METHODS.slice(1)
+                : "Unknown";
+            const docLink = p.DOCUMENT_LINK
+                ? `<a class="popup-link" href="${p.DOCUMENT_LINK}" target="_blank">View NMED documents →</a>`
+                : "";
+            new maplibregl.Popup({ maxWidth: "300px" })
+                .setLngLat(e.lngLat)
+                .setHTML(`
+                    <div class="popup-name">${p.NAME}</div>
+                    <div class="popup-row" style="color:#f97316;font-weight:600;margin-bottom:4px">⬤ Currently being remediated</div>
+                    <div class="popup-row"><span class="popup-label">County:</span> ${p.COUNTY || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">District:</span> ${p.DISTRICT || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">Method:</span> ${method}</div>
+                    <div class="popup-row"><span class="popup-label">Active years:</span> ${years}</div>
+                    <div class="popup-row"><span class="popup-label">Last operator:</span> ${p.LAST_OPERATOR || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">Regulator:</span> ${p.CURRENT_REG_AGENCY || "—"}</div>
+                    <div class="popup-row"><span class="popup-label">Status:</span> ${p.MARP_STATUS || "—"}</div>
+                    ${docLink}
+                `)
+                .addTo(map);
+        });
+
         map.on("mouseenter", "mines-circles", () => {
             map.getCanvas().style.cursor = "pointer";
         });
         map.on("mouseleave", "mines-circles", () => {
+            map.getCanvas().style.cursor = "";
+        });
+        map.on("mouseenter", "mines-remediated", () => {
+            map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", "mines-remediated", () => {
             map.getCanvas().style.cursor = "";
         });
     </script>
